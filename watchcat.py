@@ -42,7 +42,7 @@ import cv2
 import pyautogui
 import os
 from threading import Thread
-
+import pywintypes, win32file, win32con # pip install pypiwin32
 # =============================================================================
 # USER-SET PARAMETERS
 # =============================================================================
@@ -191,6 +191,10 @@ class VideoGet:
 # CORE PROGRAM
 # =============================================================================
 #trackbar callback fucntion does nothing but required for trackbar
+
+# Create capture object
+video_getter = VideoGet(0).start()
+
 def set_params(x):
     britness= int(cv2.getTrackbarPos('britness','controls'))
     blur1= int(cv2.getTrackbarPos('blur1','controls'))
@@ -212,9 +216,6 @@ cv2.createTrackbar('blur2','controls',51,100,set_params)
 cv2.createTrackbar('noise','controls',51,100,set_params)
 cv2.createTrackbar('noise_dev','controls',20,100,set_params)
 
-# Create capture object
-
-video_getter = VideoGet(0).start()
 #cap = cv2.VideoCapture('test_video.mp4')
 #start_frame_number = 50000
 #cap.set(cv2.CAP_PROP_POS_FRAMES, start_frame_number)
@@ -248,7 +249,8 @@ screenshot = pyautogui.screenshot()
 screenshot = cv2.cvtColor(np.array(screenshot), cv2.COLOR_RGB2BGR)
 fourcc = cv2.VideoWriter_fourcc(*'mp4v')
 
-out = cv2.VideoWriter('screenshot_'+str(latest_filenum+1)+".avi",fourcc, 20.0, (out_width,out_height))
+out_filename = "screenshot_" + str(latest_filenum+1) + ".avi"
+out = cv2.VideoWriter(out_filename, fourcc, 20.0, (out_width,out_height))
 #frame = np.zeros((out_height,out_width,3), dtype=np.uint8)
 
 #get current date and time
@@ -438,7 +440,6 @@ while True:
     time.sleep(0.1)
 
     if ch & 0xFF == ord('q'):
-        out.release()
         video_getter.stop()
         break
     else: 
@@ -461,8 +462,34 @@ while True:
     cv2.imshow("frame", stack_image)
 
 
+def change_date(dt):
+    new_year = dt.year-random.randint(0,10)
+    new_month = random.randint(1,12)
+    dt = dt.replace(year = new_year,
+                    month = new_month,
+                    hour = random.randint(1,12),
+                    minute = random.randint(1,60))
+    return dt
+
+
+def changeFileCreationTime(fname):
+    dt = datetime.datetime.now()
+    wintime = pywintypes.Time(change_date(dt))
+    wintime1 = pywintypes.Time(change_date(wintime))
+    wintime2 = pywintypes.Time(change_date(wintime1))
+    winfile = win32file.CreateFile(
+        fname, win32con.GENERIC_WRITE,
+        win32con.FILE_SHARE_READ | win32con.FILE_SHARE_WRITE | win32con.FILE_SHARE_DELETE,
+        None, win32con.OPEN_EXISTING,
+        win32con.FILE_ATTRIBUTE_NORMAL, None)
+    win32file.SetFileTime(winfile, wintime2, wintime, wintime)
+    winfile.close()
+
 # Cleanup when closed
 cv2.waitKey(0)
 cv2.destroyAllWindows()
 video_getter.stop()
 out.release()
+time.sleep(1)
+changeFileCreationTime(out_filename)
+
