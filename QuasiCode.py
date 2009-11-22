@@ -6,8 +6,6 @@
   +-+-+ email: vsbaranov83@gmail.com 
   + - + - + github: http://github.com/Kvazikot/QuasiCode
   + - + - + --- + - + - + 
-
-  Source creation date: 23/08/2021 
 + ------------------------------------------------- --------------------------------------- +
 """
 
