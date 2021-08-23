@@ -80,7 +80,7 @@ screenshot = cv2.cvtColor(np.array(screenshot), cv2.COLOR_RGB2BGR)
 fourcc = cv2.VideoWriter_fourcc(*'mp4v')
 out_width = 1280
 out_height = 960
-out = cv2.VideoWriter('screenshot.avi',fourcc, 20.0, (out_width,out_height))
+out = cv2.VideoWriter('screenshot'+str(random.randint(1,1000000))+".avi",fourcc, 20.0, (out_width,out_height))
 
 
 
@@ -202,7 +202,7 @@ while True:
     stack_image = np.hstack((screenshot, frame))
     stack_image = cv2.resize(stack_image, (out_width, out_height))   
 
-    if (n_frame % 25)==0:
+    if (n_frame % 5)==0:
         if (movement_persistent_counter < 100) and (movement_persistent_counter > 90): 
              #cv2.imwrite("scr"+str(random.randint(1,1000000))+".jpg", stack_image)
              out.write(stack_image)
