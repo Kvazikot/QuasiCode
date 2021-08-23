@@ -1,0 +1,4 @@
+Проект энкодера видео QuasiCode.
+23.08.2021 
+Kvazikot (vsbaranov83@gmail.com)
+
