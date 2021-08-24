@@ -127,6 +127,7 @@ while True:
 
     # Resize and save a greyscale version of the image
     frame = imutils.resize(frame, width = screenshot.shape[1])
+    frame = cv2.GaussianBlur(frame, (41, 41), 0)
    
     screenshot = cv2.resize(screenshot, (frame.shape[1], frame.shape[0]))   
     gray = cv2.cvtColor(screenshot, cv2.COLOR_BGR2GRAY)
@@ -223,8 +224,10 @@ while True:
 
     if ch & 0xFF == ord('1'):
         SCREENSHOT_ENABLED = not SCREENSHOT_ENABLED
+        movement_persistent_counter = 2
     if ch & 0xFF == ord('2'):
         CAMERA0_ENABLED = not CAMERA0_ENABLED
+        movement_persistent_counter = 2
 
     if SCREENSHOT_ENABLED == 0:
         cv2.rectangle(screenshot,(0,0),(screenshot.shape[1],screenshot.shape[0]),(0,0,0),cv2.FILLED)
