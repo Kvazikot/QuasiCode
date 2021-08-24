@@ -56,6 +56,9 @@ MIN_SIZE_FOR_MOVEMENT = 2000
 #(in program cycles) for the program to declare that there is no movement
 MOVEMENT_DETECTED_PERSISTENCE = 100
 
+SCREENSHOT_ENABLED = 1
+CAMERA0_ENABLED = 1
+
 # =============================================================================
 # CORE PROGRAM
 # =============================================================================
@@ -216,6 +219,20 @@ while True:
 
     cv2.putText(frame, str("Kvazikot (vsbaranov83@gmail.com) ") + dateTimeStr, (10,55), font, 0.75, (255,255,255), 2, cv2.LINE_AA)
 
+    ch = cv2.waitKey(1)
+
+    if ch & 0xFF == ord('1'):
+        SCREENSHOT_ENABLED = not SCREENSHOT_ENABLED
+    if ch & 0xFF == ord('2'):
+        CAMERA0_ENABLED = not CAMERA0_ENABLED
+
+    if SCREENSHOT_ENABLED == 0:
+        cv2.rectangle(screenshot,(0,0),(screenshot.shape[1],screenshot.shape[0]),(0,0,0),cv2.FILLED)
+        print("disable screenshot")
+
+    if CAMERA0_ENABLED == 0:
+        cv2.rectangle(frame,(0,0),(frame.shape[1],frame.shape[0]),(0,0,0),cv2.FILLED)
+        print("disable camera")
 
     if (n_frame % 5)==0:
         if (movement_persistent_counter < 100) and (movement_persistent_counter > 90): 
@@ -229,7 +246,7 @@ while True:
         stack_image = cv2.resize(stack_image, (out_width, out_height))   
         out.write(stack_image)
     
-    ch = cv2.waitKey(1)
+  
     if ch & 0xFF == ord('q'):
         out.release()
         break
