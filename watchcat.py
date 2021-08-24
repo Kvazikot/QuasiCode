@@ -38,6 +38,7 @@ import random
 import numpy as np
 import cv2
 import pyautogui
+import os
 
 # =============================================================================
 # USER-SET PARAMETERS
@@ -76,12 +77,22 @@ delay_counter = 0
 movement_persistent_counter = 0
 n_frame = 0
 
+#latest screenshot number
+latest_filenum = 0
+files = os.listdir()
+for file in files:
+    if file.find("screenshot_") is not -1:
+        parts = file.split('.')
+        parts = parts[0]
+        parts = parts.split('_')
+        latest_filenum = int(parts[1])
+
 screenshot = pyautogui.screenshot()
 screenshot = cv2.cvtColor(np.array(screenshot), cv2.COLOR_RGB2BGR)
 fourcc = cv2.VideoWriter_fourcc(*'mp4v')
 out_width = 1280
 out_height = 960
-out = cv2.VideoWriter('screenshot'+str(random.randint(1,1000000))+".avi",fourcc, 20.0, (out_width,out_height))
+out = cv2.VideoWriter('screenshot_'+str(latest_filenum+1)+".avi",fourcc, 20.0, (out_width,out_height))
 
 
 
