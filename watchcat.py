@@ -234,7 +234,10 @@ while True:
             cv2.imwrite("scr"+str(random.randint(1,1000000))+".jpg", stack_image)
             
     if stack_image is not None:
-        cv2.rectangle(stack_image,(0,0),(400,200),(0,0,0),cv2.FILLED)
+        if movement_persistent_counter is 99:
+            cv2.rectangle(stack_image,(0,0),(400,200),(255,0,0),cv2.FILLED)
+        else:
+            cv2.rectangle(stack_image,(0,0),(400,200),(0,0,0),cv2.FILLED)
         cv2.putText(stack_image, str(movement_persistent_counter), (10,120), font, 4.75, (255,255,255), 6, cv2.LINE_AA)            
         #cv2.putText(stack_image, str(text), (10,100), font, 0.75, (255,255,255), 2, cv2.LINE_AA)            
         cv2.imshow("frame", stack_image)
