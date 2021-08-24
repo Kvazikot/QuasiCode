@@ -59,6 +59,20 @@ MOVEMENT_DETECTED_PERSISTENCE = 100
 SCREENSHOT_ENABLED = 1
 CAMERA0_ENABLED = 1
 
+def warpPerspVFX(img):
+    x = 0
+    y = 0
+    w = frame.shape[1]
+    h = frame.shape[0]
+    corners = [[x,y], [w, y], [w, h], [x, h]]    
+    x = x + random.randint(1,40)
+    w = w - random.randint(1,40)
+    new = np.float32([[x,y], [w, y], [w, h], [x, h]]   )
+    M = cv2.getPerspectiveTransform(np.float32(corners), new)
+    img = cv2.warpPerspective(img, M, ( frame.shape[1], frame.shape[0]))
+    return img
+
+
 # =============================================================================
 # CORE PROGRAM
 # =============================================================================
@@ -134,9 +148,12 @@ while True:
     center = (frame.shape[1]/2, frame.shape[0]/2)
 
     red_channel, green_channel, blue_channel = cv2.split(frame)
+
+
     red_channel = cv2.warpPolar(red_channel, (frame.shape[1], frame.shape[0]),
                           center, frame.shape[1],
                           cv2.WARP_POLAR_LINEAR )  
+
     #print(frame)
 
     # add noise to polar coordinates
@@ -144,15 +161,20 @@ while True:
     noise = noise.astype(np.uint8)
     print(noise)
 
-    red_channel = cv2.GaussianBlur(red_channel, (41, 41), 0)
+    blur_level = random.randint(40,60)
+    if (blur_level % 2 ) == 0:
+        blur_level = blur_level + 1
+    red_channel = cv2.GaussianBlur(red_channel, (blur_level, blur_level), 0)
     red_channel = np.where((red_channel > 20), red_channel-19, red_channel).astype('uint8')
     red_channel = red_channel + noise
-
+    red_channel = warpPerspVFX(red_channel)
     #cv2.imshow("noise", noise)
     center = (center[0] - 1, center[1] + 1)
     red_channel = cv2.warpPolar(red_channel, (frame.shape[1], frame.shape[0]),
                           center, frame.shape[1],
                            cv2.WARP_INVERSE_MAP )  
+
+
     #print(frame)
     frame = cv2.merge((red_channel, red_channel, red_channel))
     screenshot = cv2.resize(screenshot, (frame.shape[1], frame.shape[0]))   
