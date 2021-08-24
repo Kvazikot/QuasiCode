@@ -151,24 +151,28 @@ while True:
     # Compare the two frames, find the difference
     frame_delta = cv2.absdiff(first_frame, next_frame)
     thresh = cv2.threshold(frame_delta, 25, 255, cv2.THRESH_BINARY)[1]
-
+    tot_pixel = thresh.size 
+    non_zero_pixels = np.count_nonzero(thresh)
+    percentage = round(non_zero_pixels * 100 / tot_pixel, 2)
+    print('non_zero_pixels '+str(percentage))
     # Fill in holes via dilate(), and find contours of the thesholds
-    thresh = cv2.dilate(thresh, None, iterations = 2)
-    contours, hierarchy = cv2.findContours(thresh.copy(), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+    if percentage > 0.01:
+        transient_movement_flag = True
 
-    # loop over the contours
-    for c in contours:
+    #thresh = cv2.dilate(thresh, None, iterations = 2)
+    #contours, hierarchy = cv2.findContours(thresh.copy(), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
 
-        # Save the coordinates of all found contours
-        (x, y, w, h) = cv2.boundingRect(c)
+    ## loop over the contours
+    #for c in contours:
+
+    #    # Save the coordinates of all found contours
+    #    (x, y, w, h) = cv2.boundingRect(c)
         
-        # If the contour is too small, ignore it, otherwise, there's transient
-        # movement
-        if cv2.contourArea(c) > MIN_SIZE_FOR_MOVEMENT:
-            transient_movement_flag = True
-            
-            # Draw a rectangle around big enough movements
-#          cv2.rectangle(frame, (x, y), (x + w, y + h), (0, 255, 0), 2)
+    #    # If the contour is too small, ignore it, otherwise, there's transient
+    #    # movement
+    #    if cv2.contourArea(c) > MIN_SIZE_FOR_MOVEMENT:
+    #        transient_movement_flag = True
+           
 
     # The moment something moves momentarily, reset the persistent
     # movement timer.
