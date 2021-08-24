@@ -5,8 +5,8 @@ OpenCV Motion Detector
                                    .     .
                                 .  |\-^-/|  .
                                /| } O.=.O { |\
-                              /´ \ \_ ~ _/ / `\
-                            /´ |  \-/ ~ \-/  | `\
+                              /Вґ \ \_ ~ _/ / `\
+                            /Вґ |  \-/ ~ \-/  | `\
                             |   |  /\\ //\  |   |
                              \|\|\/-""-""-\/|/|/
                                      ______/ /
@@ -68,6 +68,7 @@ cap = cv2.VideoCapture(0) # Then start the webcam
 # Init frame variables
 first_frame = None
 next_frame = None
+stack_image = None
 
 # Init display font and timeout counters
 font = cv2.FONT_HERSHEY_SIMPLEX
@@ -199,14 +200,20 @@ while True:
     cv2.putText(frame, str(text), (10,35), font, 0.75, (255,255,255), 2, cv2.LINE_AA)
 
     cv2.putText(frame, str("Kvazikot (vsbaranov83@gmail.com) ") + dateTimeStr, (10,55), font, 0.75, (255,255,255), 2, cv2.LINE_AA)
-    stack_image = np.hstack((screenshot, frame))
-    stack_image = cv2.resize(stack_image, (out_width, out_height))   
+
 
     if (n_frame % 5)==0:
         if (movement_persistent_counter < 100) and (movement_persistent_counter > 90): 
              #cv2.imwrite("scr"+str(random.randint(1,1000000))+".jpg", stack_image)
+             stack_image = np.hstack((screenshot, frame))
+             stack_image = cv2.resize(stack_image, (out_width, out_height))   
              out.write(stack_image)
-
+             
+    if (movement_persistent_counter == 2):
+        stack_image = np.hstack((screenshot, frame))
+        stack_image = cv2.resize(stack_image, (out_width, out_height))   
+        out.write(stack_image)
+    
     ch = cv2.waitKey(1)
     if ch & 0xFF == ord('q'):
         out.release()
@@ -215,12 +222,18 @@ while True:
         if ch & 0xFF == ord(' '):    
             cv2.imwrite("scr"+str(random.randint(1,1000000))+".jpg", stack_image)
             
-
+    if stack_image is not None:
+        cv2.rectangle(stack_image,(0,0),(400,200),(0,0,0),cv2.FILLED)
+        cv2.putText(stack_image, str(movement_persistent_counter), (10,120), font, 4.75, (255,255,255), 6, cv2.LINE_AA)            
+        #cv2.putText(stack_image, str(text), (10,100), font, 0.75, (255,255,255), 2, cv2.LINE_AA)            
+        cv2.imshow("frame", stack_image)
+    else:
+        cv2.imshow("frame", frame)            
 
     # Splice the two video frames together to make one long horizontal one
 
 
-    cv2.imshow("frame", stack_image)
+    
  
 
 
