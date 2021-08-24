@@ -126,9 +126,35 @@ while True:
     screenshot = cv2.cvtColor(np.array(screenshot), cv2.COLOR_RGB2BGR)
 
     # Resize and save a greyscale version of the image
+
     frame = imutils.resize(frame, width = screenshot.shape[1])
     frame = cv2.GaussianBlur(frame, (41, 41), 0)
-   
+
+    # warp coordinates from x,y -> f(phi,r)
+    center = (frame.shape[1]/2, frame.shape[0]/2)
+
+    red_channel, green_channel, blue_channel = cv2.split(frame)
+    red_channel = cv2.warpPolar(red_channel, (frame.shape[1], frame.shape[0]),
+                          center, frame.shape[1],
+                          cv2.WARP_POLAR_LINEAR )  
+    #print(frame)
+
+    # add noise to polar coordinates
+    noise = np.random.normal(10, (5), (red_channel.shape[0], red_channel.shape[1]))        
+    noise = noise.astype(np.uint8)
+    print(noise)
+
+    red_channel = cv2.GaussianBlur(red_channel, (41, 41), 0)
+    red_channel = np.where((red_channel > 20), red_channel-19, red_channel).astype('uint8')
+    red_channel = red_channel + noise
+
+    #cv2.imshow("noise", noise)
+    center = (center[0] - 1, center[1] + 1)
+    red_channel = cv2.warpPolar(red_channel, (frame.shape[1], frame.shape[0]),
+                          center, frame.shape[1],
+                           cv2.WARP_INVERSE_MAP )  
+    #print(frame)
+    frame = cv2.merge((red_channel, red_channel, red_channel))
     screenshot = cv2.resize(screenshot, (frame.shape[1], frame.shape[0]))   
     gray = cv2.cvtColor(screenshot, cv2.COLOR_BGR2GRAY)
 
