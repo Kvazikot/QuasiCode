@@ -65,8 +65,8 @@ def warpPerspVFX(img):
     w = frame.shape[1]
     h = frame.shape[0]
     corners = [[x,y], [w, y], [w, h], [x, h]]    
-    x = x + random.randint(1,40)
-    w = w - random.randint(1,40)
+    x = x + random.randint(1,10)
+    w = w - random.randint(1,10)
     new = np.float32([[x,y], [w, y], [w, h], [x, h]]   )
     M = cv2.getPerspectiveTransform(np.float32(corners), new)
     img = cv2.warpPerspective(img, M, ( frame.shape[1], frame.shape[0]))
@@ -157,16 +157,17 @@ while True:
     #print(frame)
 
     # add noise to polar coordinates
-    noise = np.random.normal(10, (5), (red_channel.shape[0], red_channel.shape[1]))        
+    noise = np.random.normal(12, (12), (red_channel.shape[0], red_channel.shape[1]))        
     noise = noise.astype(np.uint8)
-    print(noise)
+    #print(noise)
 
     blur_level = random.randint(40,60)
     if (blur_level % 2 ) == 0:
         blur_level = blur_level + 1
-    red_channel = cv2.GaussianBlur(red_channel, (blur_level, blur_level), 0)
-    red_channel = np.where((red_channel > 20), red_channel-19, red_channel).astype('uint8')
     red_channel = red_channel + noise
+    red_channel = np.where((noise > 12), red_channel-12, red_channel).astype('uint8')    
+    red_channel = cv2.GaussianBlur(red_channel, (blur_level, blur_level), 0)
+
     red_channel = warpPerspVFX(red_channel)
     #cv2.imshow("noise", noise)
     center = (center[0] - 1, center[1] + 1)
@@ -266,7 +267,7 @@ while True:
     # feeds
     cv2.putText(frame, str(text), (10,35), font, 0.75, (255,255,255), 2, cv2.LINE_AA)
 
-    cv2.putText(frame, str("Kvazikot (vsbaranov83@gmail.com) ") + dateTimeStr, (10,55), font, 0.75, (255,255,255), 2, cv2.LINE_AA)
+    cv2.putText(frame, str("QuasiCode ") + dateTimeStr, (10,55), font, 0.75, (255,255,255), 2, cv2.LINE_AA)
 
     ch = cv2.waitKey(1)
 
