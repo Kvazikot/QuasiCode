@@ -40,6 +40,7 @@ import numpy as np
 import cv2
 import pyautogui
 import os
+from threading import Thread
 
 # =============================================================================
 # USER-SET PARAMETERS
@@ -48,17 +49,16 @@ import os
 # Number of frames to pass before changing the frame to compare the current
 # frame against
 FRAMES_TO_PERSIST = 10
-
 # Minimum boxed area for a detected motion to count as actual motion
 # Use to filter out noise or small objects
 MIN_SIZE_FOR_MOVEMENT = 2000
-
 # Minimum length of time where no motion is detected it should take
 #(in program cycles) for the program to declare that there is no movement
 MOVEMENT_DETECTED_PERSISTENCE = 100
-
 SCREENSHOT_ENABLED = 1
 CAMERA0_ENABLED = 1
+out_width = 1280
+out_height = 960
 
 def warpPerspVFX(img):
     x = 0
@@ -74,18 +74,91 @@ def warpPerspVFX(img):
     return img
 
 
+
+
+class VideoGet:
+    """
+    Class that continuously gets frames from a VideoCapture object
+    with a dedicated thread.
+    """
+
+    def __init__(self, src=0):
+        self.stream = cv2.VideoCapture(src)
+        (self.grabbed, self.frame0) = self.stream.read()
+        self.frame = np.zeros((out_height,out_width,3), dtype=np.uint8)
+        self.stopped = False
+    def start(self):
+        Thread(target=self.get, args=()).start()
+        return self
+    def get(self):
+        while not self.stopped:
+            if not self.grabbed:
+                self.stop()
+            else:
+                t0 = time.time_ns() 
+                (self.grabbed, self.frame0) = self.stream.read()
+                self.frame = self.processing(self.frame0)
+                lastFrameTime = (time.time_ns() - t0) / (10 ** 9)
+                print('lastFrameTime Distortion ' + str(lastFrameTime))
+
+                time.sleep(0.4) 
+                #print("get(self)")
+                
+    def processing(self, frame):
+            frame = cv2.resize(frame, (out_width, out_height))
+            frame = cv2.GaussianBlur(frame, (41, 41), 0)
+
+            # warp coordinates from x,y -> f(phi,r)
+            center = (frame.shape[1]/2, frame.shape[0]/2)
+
+            red_channel, green_channel, blue_channel = cv2.split(frame)
+
+
+            red_channel = cv2.warpPolar(red_channel, (frame.shape[1], frame.shape[0]),
+                                  center, frame.shape[1],
+                                  cv2.WARP_POLAR_LINEAR )  
+
+            #print(frame)
+
+            # add noise to polar coordinates
+            noise = np.random.normal(12, (12), (red_channel.shape[0], red_channel.shape[1]))        
+            noise = noise.astype(np.uint8)
+            #print(noise)
+
+            blur_level = random.randint(40,60)
+            if (blur_level % 2 ) == 0:
+                blur_level = blur_level + 1
+
+            red_channel = red_channel + noise
+            red_channel = np.where((noise > 12), red_channel-12, red_channel).astype('uint8')    
+            red_channel = cv2.GaussianBlur(red_channel, (blur_level, blur_level), 0)
+
+            red_channel = warpPerspVFX(red_channel)
+            #cv2.imshow("noise", noise)
+            center = (center[0] - 1, center[1] + 1)
+            red_channel = cv2.warpPolar(red_channel, (frame.shape[1], frame.shape[0]),
+                                  center, frame.shape[1],
+                                   cv2.WARP_INVERSE_MAP )  
+
+
+            #print(frame)
+            frame = cv2.merge((red_channel, red_channel, red_channel))
+            return frame
+
+    def stop(self):
+        self.stopped = True
+
 # =============================================================================
 # CORE PROGRAM
 # =============================================================================
 
 
 # Create capture object
-cap = cv2.VideoCapture(5) # Flush the stream
-cap.release()
-#cap = cv2.VideoCapture(0) # Then start the webcam
-cap = cv2.VideoCapture('test_video.mp4')
-start_frame_number = 50000
-cap.set(cv2.CAP_PROP_POS_FRAMES, start_frame_number)
+
+video_getter = VideoGet(0).start()
+#cap = cv2.VideoCapture('test_video.mp4')
+#start_frame_number = 50000
+#cap.set(cv2.CAP_PROP_POS_FRAMES, start_frame_number)
 #fps = cap.get(cv2.cv.CV_CAP_PROP_FPS)
 fps = 25
 
@@ -115,11 +188,9 @@ for file in files:
 screenshot = pyautogui.screenshot()
 screenshot = cv2.cvtColor(np.array(screenshot), cv2.COLOR_RGB2BGR)
 fourcc = cv2.VideoWriter_fourcc(*'mp4v')
-out_width = 1280
-out_height = 960
 
 out = cv2.VideoWriter('screenshot_'+str(latest_filenum+1)+".avi",fourcc, 20.0, (out_width,out_height))
-frame = np.zeros((out_height,out_width,3), dtype=np.uint8)
+#frame = np.zeros((out_height,out_width,3), dtype=np.uint8)
 
 #get current date and time
 x = datetime.datetime.now()
@@ -129,9 +200,25 @@ y = y.replace(month=x.month + random.randint(-2,2))
 #convert date and time to string
 dateTimeStr = str(y)
 
+def my_stack(stack):
+    if CAMERA0_ENABLED:
+        largeImage = stack[0]        
+        size = (largeImage.shape[1], largeImage.shape[0])
+        new_size = (round(stack[0].shape[1]/8), round(stack[0].shape[0]/8),3)
+        #print('new_size ' + str(new_size))
+        smallImage = np.zeros(new_size, dtype=np.uint8)
+
+        #smallImage = cv2.resize(stack[0], (new_size[0],new_size[1]))
+        ofs = (stack[0].shape[1]-new_size[1], stack[0].shape[0]-new_size[0])
+        #print('offsets ' + str(ofs))
+        #largeImage[ofs[0]:size[0],ofs[1]:size[1]] = smallImage.copy()
+        #cv2.imshow('largeImage',largeImage)
+    return np.hstack((stack[0],stack[1]))
+
 
 # LOOP!
 while True:
+    t0 = time.time_ns()
     n_frame = n_frame + 1
     # Set transient motion detected as false
     transient_movement_flag = False
@@ -178,7 +265,7 @@ while True:
     tot_pixel = thresh.size 
     non_zero_pixels = np.count_nonzero(thresh)
     percentage = round(non_zero_pixels * 100 / tot_pixel, 2)
-    print('non_zero_pixels '+str(percentage))
+    #print('non_zero_pixels '+str(percentage))
     # Fill in holes via dilate(), and find contours of the thesholds
     if percentage > 0.01:
         transient_movement_flag = True
@@ -214,57 +301,13 @@ while True:
         read_frame_flag = True
 
 
-    if read_frame_flag:
+   # if read_frame_flag:
         # Read frame
-        ret, frame = cap.read()
-        text = "Unoccupied"
 
-        # If there's an error in capturing
-        if not ret:
-            print("CAPTURE ERROR")
-            continue
-
-
-        frame = cv2.resize(frame, (out_width, out_height))
-        frame = cv2.GaussianBlur(frame, (41, 41), 0)
-
-        # warp coordinates from x,y -> f(phi,r)
-        center = (frame.shape[1]/2, frame.shape[0]/2)
-
-        red_channel, green_channel, blue_channel = cv2.split(frame)
-
-
-        red_channel = cv2.warpPolar(red_channel, (frame.shape[1], frame.shape[0]),
-                              center, frame.shape[1],
-                              cv2.WARP_POLAR_LINEAR )  
-
-        #print(frame)
-
-        # add noise to polar coordinates
-        noise = np.random.normal(12, (12), (red_channel.shape[0], red_channel.shape[1]))        
-        noise = noise.astype(np.uint8)
-        #print(noise)
-
-        blur_level = random.randint(40,60)
-        if (blur_level % 2 ) == 0:
-            blur_level = blur_level + 1
-
-        red_channel = red_channel + noise
-        red_channel = np.where((noise > 12), red_channel-12, red_channel).astype('uint8')    
-        red_channel = cv2.GaussianBlur(red_channel, (blur_level, blur_level), 0)
-
-        red_channel = warpPerspVFX(red_channel)
-        #cv2.imshow("noise", noise)
-        center = (center[0] - 1, center[1] + 1)
-        red_channel = cv2.warpPolar(red_channel, (frame.shape[1], frame.shape[0]),
-                              center, frame.shape[1],
-                               cv2.WARP_INVERSE_MAP )  
-
-
-        #print(frame)
-        frame = cv2.merge((red_channel, red_channel, red_channel))
-
-    time.sleep(0.4)
+    #ret, frame = cap.read()
+    if video_getter.grabbed:
+        frame = video_getter.frame
+   
 
  
     # writing it to the disk using opencv
@@ -317,13 +360,17 @@ while True:
 
 
 
-    stack_image = np.hstack((screenshot, frame))
+    #stack_image = np.hstack((screenshot, frame))
+    stack_image = my_stack([screenshot, frame])
     stack_image = cv2.resize(stack_image, (out_width, out_height))       
     out.write(stack_image)
              
-  
+    lastFrameTime = (time.time_ns() - t0) / (10 ** 9)
+    print('lastFrameTime ' + str(lastFrameTime))
+
     if ch & 0xFF == ord('q'):
         out.release()
+        video_getter.stop()
         break
     else: 
         if ch & 0xFF == ord(' '):    
@@ -352,5 +399,5 @@ while True:
 # Cleanup when closed
 cv2.waitKey(0)
 cv2.destroyAllWindows()
-cap.release()
+video_getter.stop()
 out.release()
