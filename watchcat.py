@@ -67,7 +67,7 @@ def warpPerspVFX(img):
     h = frame.shape[0]
     corners = [[x,y], [w, y], [w, h], [x, h]]    
     x = x + random.randint(1,10)
-    w = w - random.randint(1,10)
+    w = w + random.randint(-100,100)
     new = np.float32([[x,y], [w, y], [w, h], [x, h]]   )
     M = cv2.getPerspectiveTransform(np.float32(corners), new)
     img = cv2.warpPerspective(img, M, ( frame.shape[1], frame.shape[0]))
@@ -87,63 +87,81 @@ class VideoGet:
         (self.grabbed, self.frame0) = self.stream.read()
         self.frame = np.zeros((out_height,out_width,3), dtype=np.uint8)
         self.stopped = False
+        self.read_frame_flag = True
     def start(self):
         Thread(target=self.get, args=()).start()
         return self
+    def set_read_flag(self, flag):
+        self.read_frame_flag = flag
     def get(self):
         while not self.stopped:
             if not self.grabbed:
                 self.stop()
             else:
                 t0 = time.time_ns() 
-                (self.grabbed, self.frame0) = self.stream.read()
-                self.frame = self.processing(self.frame0)
+                if self.read_frame_flag:
+                    (self.grabbed, self.frame0) = self.stream.read()
+                    self.frame = self.processing(self.frame0)
+                self.read_frame_flag = False
                 lastFrameTime = (time.time_ns() - t0) / (10 ** 9)
                 print('lastFrameTime Distortion ' + str(lastFrameTime))
 
                 time.sleep(0.4) 
                 #print("get(self)")
+
+    def decrase_brightness(self, img, value=30):
+        #hsv = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
+        #h, s, v = cv2.split(hsv)
+
+        lim = value
+        img[img < lim] = 0
+        img[img >= lim] -= value
+
+        #final_hsv = cv2.merge((h, s, v))
+        #img = cv2.cvtColor(final_hsv, cv2.COLOR_HSV2BGR)
+        return img
                 
     def processing(self, frame):
-            frame = cv2.resize(frame, (out_width, out_height))
-            frame = cv2.GaussianBlur(frame, (41, 41), 0)
+        frame = cv2.resize(frame, (out_width, out_height))
+        frame = cv2.GaussianBlur(frame, (41, 41), 0)
 
-            # warp coordinates from x,y -> f(phi,r)
-            center = (frame.shape[1]/2, frame.shape[0]/2)
+        # warp coordinates from x,y -> f(phi,r)
+        center = (frame.shape[1]/2, frame.shape[0]/2)
 
-            red_channel, green_channel, blue_channel = cv2.split(frame)
-
-
-            red_channel = cv2.warpPolar(red_channel, (frame.shape[1], frame.shape[0]),
-                                  center, frame.shape[1],
-                                  cv2.WARP_POLAR_LINEAR )  
-
-            #print(frame)
-
-            # add noise to polar coordinates
-            noise = np.random.normal(12, (12), (red_channel.shape[0], red_channel.shape[1]))        
-            noise = noise.astype(np.uint8)
-            #print(noise)
-
-            blur_level = random.randint(40,60)
-            if (blur_level % 2 ) == 0:
-                blur_level = blur_level + 1
-
-            red_channel = red_channel + noise
-            red_channel = np.where((noise > 12), red_channel-12, red_channel).astype('uint8')    
-            red_channel = cv2.GaussianBlur(red_channel, (blur_level, blur_level), 0)
-
-            red_channel = warpPerspVFX(red_channel)
-            #cv2.imshow("noise", noise)
-            center = (center[0] - 1, center[1] + 1)
-            red_channel = cv2.warpPolar(red_channel, (frame.shape[1], frame.shape[0]),
-                                  center, frame.shape[1],
-                                   cv2.WARP_INVERSE_MAP )  
+        red_channel, green_channel, blue_channel = cv2.split(frame)
 
 
-            #print(frame)
-            frame = cv2.merge((red_channel, red_channel, red_channel))
-            return frame
+        red_channel = cv2.warpPolar(red_channel, (frame.shape[1], frame.shape[0]),
+                                center, frame.shape[1],
+                                cv2.WARP_POLAR_LINEAR )  
+            
+        red_channel = self.decrase_brightness(red_channel)
+        #print(frame)
+
+        # add noise to polar coordinates
+        noise = np.random.normal(12, (12), (red_channel.shape[0], red_channel.shape[1]))        
+        noise = noise.astype(np.uint8)
+        #print(noise)
+
+        blur_level = random.randint(40,60)
+        if (blur_level % 2 ) == 0:
+            blur_level = blur_level + 1
+
+        red_channel = red_channel + noise
+        red_channel = np.where((noise > 12), red_channel-12, red_channel).astype('uint8')    
+        red_channel = cv2.GaussianBlur(red_channel, (blur_level, blur_level), 0)
+
+        red_channel = warpPerspVFX(red_channel)
+        #cv2.imshow("noise", noise)
+        center = (center[0] - 1, center[1] + 1)
+        red_channel = cv2.warpPolar(red_channel, (frame.shape[1], frame.shape[0]),
+                                center, frame.shape[1],
+                                cv2.WARP_INVERSE_MAP )  
+
+
+        #print(frame)
+        frame = cv2.merge((red_channel, red_channel, red_channel))
+        return frame
 
     def stop(self):
         self.stopped = True
@@ -200,6 +218,8 @@ y = y.replace(month=x.month + random.randint(-2,2))
 #convert date and time to string
 dateTimeStr = str(y)
 
+
+
 def my_stack(stack):
     if CAMERA0_ENABLED:
         largeImage = stack[0]        
@@ -216,10 +236,11 @@ def my_stack(stack):
     return np.hstack((stack[0],stack[1]))
 
 
+
 # LOOP!
 while True:
     t0 = time.time_ns()
-    n_frame = n_frame + 1
+
     # Set transient motion detected as false
     transient_movement_flag = False
     
@@ -296,13 +317,17 @@ while True:
     
     if (movement_persistent_counter > 90 or movement_persistent_counter == 2): 
         read_frame_flag = True
+        n_frame = n_frame + 1
+        if (n_frame % 5) == 0:
+            video_getter.set_read_flag(True)
+        else:
+           read_frame_flag = False
     else:
         read_frame_flag = False
     
-
-    if read_frame_flag:
-       if video_getter.grabbed:
-          frame = video_getter.frame
+    
+    if video_getter.grabbed:
+       frame = video_getter.frame
 
     #ret, frame = cap.read()
    
@@ -361,7 +386,6 @@ while True:
     #stack_image = np.hstack((screenshot, frame))
     stack_image = my_stack([screenshot, frame])
     stack_image = cv2.resize(stack_image, (out_width, out_height))       
-    out.write(stack_image)
              
     lastFrameTime = (time.time_ns() - t0) / (10 ** 9)
     print('lastFrameTime ' + str(lastFrameTime))
@@ -376,24 +400,19 @@ while True:
             cv2.imwrite("scr"+str(random.randint(1,1000000))+".jpg", stack_image)
             
     if stack_image is not None:
-        if read_frame_flag is True:
+        if read_frame_flag:
             cv2.rectangle(stack_image,(0,0),(400,200),(0,0,255),cv2.FILLED)
         else:
             cv2.rectangle(stack_image,(0,0),(400,200),(0,0,0),cv2.FILLED)
         cv2.putText(stack_image, str(movement_persistent_counter), (10,120), font, 4.75, (255,255,255), 6, cv2.LINE_AA)            
         #cv2.putText(stack_image, str(text), (10,100), font, 0.75, (255,255,255), 2, cv2.LINE_AA)            
-        cv2.imshow("frame", stack_image)
-    else:
-        cv2.imshow("frame", frame)            
 
     # Splice the two video frames together to make one long horizontal one
-
-
+    if read_frame_flag:
+        out.write(stack_image)
     
- 
+    cv2.imshow("frame", stack_image)
 
-
-  
 
 # Cleanup when closed
 cv2.waitKey(0)
