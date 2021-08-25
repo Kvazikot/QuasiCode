@@ -36,6 +36,7 @@ import numpy as np
 import datetime
 import time
 import random
+import math
 import numpy as np
 import cv2
 import pyautogui
@@ -89,6 +90,9 @@ class VideoGet:
         self.frame = np.zeros((out_height,out_width,3), dtype=np.uint8)
         self.stopped = False
         self.read_frame_flag = True
+        self.britness = 30
+        #britness blur1 blur2
+        self.params = (90,41,51)
     def start(self):
         Thread(target=self.get, args=()).start()
         return self
@@ -110,13 +114,23 @@ class VideoGet:
                 time.sleep(0.4) 
                 #print("get(self)")
 
+    def set_britness(self, params):
+        self.britness = params[0]
+        self.params = params
+
     def decrase_brightness(self, img, value=30):
         #hsv = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
         #h, s, v = cv2.split(hsv)
 
-        lim = value
-        img[img < lim] = 0
-        img[img >= lim] -= value
+        if value < 0:
+            lim = value
+            img[img < lim] = 0
+            img[img >= lim] -= value
+        else:
+            lim = value
+            img[img > lim] = 255 - value
+            img[img <= lim] += value
+
 
         #final_hsv = cv2.merge((h, s, v))
         #img = cv2.cvtColor(final_hsv, cv2.COLOR_HSV2BGR)
@@ -124,44 +138,49 @@ class VideoGet:
                 
     def processing(self, frame):
         frame = cv2.resize(frame, (out_width, out_height))
-        frame = cv2.GaussianBlur(frame, (41, 41), 0)
+        blur_level = self.params[2]
+        if (blur_level % 2 ) == 0:
+            blur_level = blur_level + 1
+        
+        frame = cv2.GaussianBlur(frame, (blur_level, blur_level), 0)
 
         # warp coordinates from x,y -> f(phi,r)
         center = (frame.shape[1]/2, frame.shape[0]/2)
 
-        red_channel, green_channel, blue_channel = cv2.split(frame)
+        v = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+        #h, s, v = cv2.split(hsv)
 
-
-        red_channel = cv2.warpPolar(red_channel, (frame.shape[1], frame.shape[0]),
+        v = cv2.warpPolar(v, (frame.shape[1], frame.shape[0]),
                                 center, frame.shape[1],
                                 cv2.WARP_POLAR_LINEAR )  
             
-        red_channel = self.decrase_brightness(red_channel)
+        v = self.decrase_brightness(v, self.params[0])
+
         #print(frame)
 
         # add noise to polar coordinates
-        noise = np.random.normal(12, (12), (red_channel.shape[0], red_channel.shape[1]))        
+        noise = np.random.normal(12, (12), (v.shape[0], v.shape[1]))        
         noise = noise.astype(np.uint8)
         #print(noise)
 
-        blur_level = random.randint(40,60)
+        blur_level = random.randint(self.params[1],self.params[1]+20)
         if (blur_level % 2 ) == 0:
             blur_level = blur_level + 1
 
-        red_channel = red_channel + noise
-        red_channel = np.where((noise > 12), red_channel-12, red_channel).astype('uint8')    
-        red_channel = cv2.GaussianBlur(red_channel, (blur_level, blur_level), 0)
+        v = np.where((v + noise > 255), 255, v + noise).astype('uint8')    
+        v = cv2.GaussianBlur(v, (blur_level, blur_level), 0)
 
-        red_channel = warpPerspVFX(red_channel)
+        v = warpPerspVFX(v)
         #cv2.imshow("noise", noise)
         center = (center[0] - 1, center[1] + 1)
-        red_channel = cv2.warpPolar(red_channel, (frame.shape[1], frame.shape[0]),
+        v = cv2.warpPolar(v, (frame.shape[1], frame.shape[0]),
                                 center, frame.shape[1],
                                 cv2.WARP_INVERSE_MAP )  
 
 
         #print(frame)
-        frame = cv2.merge((red_channel, red_channel, red_channel))
+        #frame = cv2.merge((v, v, v))
+        frame = cv2.cvtColor(v, cv2.COLOR_GRAY2BGR)
         return frame
 
     def stop(self):
@@ -170,7 +189,23 @@ class VideoGet:
 # =============================================================================
 # CORE PROGRAM
 # =============================================================================
+#trackbar callback fucntion does nothing but required for trackbar
+def set_params(x):
+    britness= int(cv2.getTrackbarPos('britness','controls'))
+    blur1= int(cv2.getTrackbarPos('blur1','controls'))
+    blur2= int(cv2.getTrackbarPos('blur2','controls'))
+    params = (britness, blur1, blur2)
+    print(f'params={params}')
+    video_getter.set_britness(params)
+    pass
 
+
+#create a seperate window named 'controls' for trackbar
+cv2.namedWindow('controls')
+#create trackbar in 'controls' window with name 'r''
+cv2.createTrackbar('britness','controls',90,255,set_params)
+cv2.createTrackbar('blur1','controls',41,100,set_params)
+cv2.createTrackbar('blur2','controls',51,100,set_params)
 
 # Create capture object
 
@@ -202,7 +237,7 @@ for file in files:
         parts = file.split('.')
         parts = parts[0]
         parts = parts.split('_')
-        latest_filenum = int(parts[1])
+        latest_filenum = max(latest_filenum, int(parts[1]))
 
 screenshot = pyautogui.screenshot()
 screenshot = cv2.cvtColor(np.array(screenshot), cv2.COLOR_RGB2BGR)
