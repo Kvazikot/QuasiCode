@@ -347,7 +347,7 @@ while True:
         # Interrupt trigger by pressing q to quit the open CV program
   
 
-    cv2.putText(frame, str("press space for screenshot"), (10,75), font, 0.75, (255,255,255), 2, cv2.LINE_AA)
+    #cv2.putText(frame, str("press space for screenshot"), (10,75), font, 0.75, (255,255,255), 2, cv2.LINE_AA)
     
 
     # As long as there was a recent transient movement, say a movement
@@ -361,9 +361,6 @@ while True:
 
            # Print the text on the screen, and display the raw and processed video 
     # feeds
-    cv2.putText(frame, str(text), (10,35), font, 0.75, (255,255,255), 2, cv2.LINE_AA)
-
-    cv2.putText(frame, str("QuasiCode1 ") + dateTimeStr, (10,55), font, 0.75, (255,255,255), 2, cv2.LINE_AA)
 
     ch = cv2.waitKey(1)
 
@@ -386,6 +383,8 @@ while True:
 
      # Malevich instead of date        
     cv2.rectangle(screenshot,(screenshot.shape[1]-60,screenshot.shape[0]-200),(screenshot.shape[1]-10,screenshot.shape[0]-10),(0,0,0),cv2.FILLED)
+    cv2.putText(screenshot, str(text), (10,35), font, 0.75, (255,255,255), 2, cv2.LINE_AA)
+    cv2.putText(screenshot, str("QuasiCode1 ") + dateTimeStr, (10,55), font, 0.75, (255,255,255), 2, cv2.LINE_AA)
 
 
 
@@ -405,6 +404,9 @@ while True:
     else: 
         if ch & 0xFF == ord(' '):    
             cv2.imwrite("scr"+str(random.randint(1,1000000))+".jpg", stack_image)
+
+    if read_frame_flag:
+        out.write(stack_image)
             
     if stack_image is not None:
         if read_frame_flag:
@@ -415,8 +417,6 @@ while True:
         #cv2.putText(stack_image, str(text), (10,100), font, 0.75, (255,255,255), 2, cv2.LINE_AA)            
 
     # Splice the two video frames together to make one long horizontal one
-    if read_frame_flag:
-        out.write(stack_image)
     
     cv2.imshow("frame", stack_image)
 
