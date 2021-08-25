@@ -57,6 +57,7 @@ MIN_SIZE_FOR_MOVEMENT = 2000
 MOVEMENT_DETECTED_PERSISTENCE = 100
 SCREENSHOT_ENABLED = 1
 CAMERA0_ENABLED = 1
+PICTURE_IN_PICTURE = 1
 out_width = 1280
 out_height = 960
 
@@ -221,18 +222,22 @@ dateTimeStr = str(y)
 
 
 def my_stack(stack):
-    if CAMERA0_ENABLED:
+    if PICTURE_IN_PICTURE:
         largeImage = stack[0]        
         size = (largeImage.shape[1], largeImage.shape[0])
         new_size = (round(stack[0].shape[1]/8), round(stack[0].shape[0]/8),3)
         #print('new_size ' + str(new_size))
-        smallImage = np.zeros(new_size, dtype=np.uint8)
+        #smallImage = np.zeros(new_size, dtype=np.uint8)
 
-        #smallImage = cv2.resize(stack[0], (new_size[0],new_size[1]))
-        ofs = (stack[0].shape[1]-new_size[1], stack[0].shape[0]-new_size[0])
-        #print('offsets ' + str(ofs))
-        #largeImage[ofs[0]:size[0],ofs[1]:size[1]] = smallImage.copy()
+        if CAMERA0_ENABLED:
+            smallImage = cv2.resize(stack[1], (new_size[0],new_size[1]))
+            ofs = (stack[0].shape[0]-new_size[0],stack[0].shape[1]-new_size[1]-100)
+            #print('offsets ' + str(ofs))        
+            largeImage[0:new_size[1], ofs[1]:ofs[1]+new_size[0]] = smallImage.copy()
+        #print(f"ofs {ofs}")
         #cv2.imshow('largeImage',largeImage)
+        return largeImage
+    
     return np.hstack((stack[0],stack[1]))
 
 
@@ -368,6 +373,8 @@ while True:
     if ch & 0xFF == ord('2'):
         CAMERA0_ENABLED = not CAMERA0_ENABLED
         movement_persistent_counter = 2
+    if ch & 0xFF == ord('3'):
+        PICTURE_IN_PICTURE = not PICTURE_IN_PICTURE
 
     if SCREENSHOT_ENABLED == 0:
         cv2.rectangle(screenshot,(0,0),(screenshot.shape[1],screenshot.shape[0]),(0,0,0),cv2.FILLED)
