@@ -161,13 +161,13 @@ video_getter = VideoGet(0).start()
 #cap.set(cv2.CAP_PROP_POS_FRAMES, start_frame_number)
 #fps = cap.get(cv2.cv.CV_CAP_PROP_FPS)
 fps = 25
-
+frame = np.zeros((out_height,out_width,3), dtype=np.uint8)
 # Init frame variables
 first_frame = None
 next_frame = None
 stack_image = None
 movement_persistent_flag = False
-read_frame_flag = False
+read_frame_flag = True
 
 # Init display font and timeout counters
 font = cv2.FONT_HERSHEY_SIMPLEX
@@ -291,22 +291,20 @@ while True:
         movement_persistent_flag = True
         movement_persistent_counter = MOVEMENT_DETECTED_PERSISTENCE
 
-    read_frame_flag = False
+    
 
-    if (n_frame % 5)==0:
-        if (movement_persistent_counter < 100) and (movement_persistent_counter > 90): 
-            read_frame_flag = True
-            
-    if (movement_persistent_counter == 2):
+    
+    if (movement_persistent_counter > 90 or movement_persistent_counter == 2): 
         read_frame_flag = True
+    else:
+        read_frame_flag = False
+    
 
-
-   # if read_frame_flag:
-        # Read frame
+    if read_frame_flag:
+       if video_getter.grabbed:
+          frame = video_getter.frame
 
     #ret, frame = cap.read()
-    if video_getter.grabbed:
-        frame = video_getter.frame
    
 
  
@@ -367,6 +365,7 @@ while True:
              
     lastFrameTime = (time.time_ns() - t0) / (10 ** 9)
     print('lastFrameTime ' + str(lastFrameTime))
+    time.sleep(0.1)
 
     if ch & 0xFF == ord('q'):
         out.release()
@@ -377,8 +376,8 @@ while True:
             cv2.imwrite("scr"+str(random.randint(1,1000000))+".jpg", stack_image)
             
     if stack_image is not None:
-        if movement_persistent_counter is 99:
-            cv2.rectangle(stack_image,(0,0),(400,200),(255,0,0),cv2.FILLED)
+        if read_frame_flag is True:
+            cv2.rectangle(stack_image,(0,0),(400,200),(0,0,255),cv2.FILLED)
         else:
             cv2.rectangle(stack_image,(0,0),(400,200),(0,0,0),cv2.FILLED)
         cv2.putText(stack_image, str(movement_persistent_counter), (10,120), font, 4.75, (255,255,255), 6, cv2.LINE_AA)            
