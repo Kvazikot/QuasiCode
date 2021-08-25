@@ -34,6 +34,7 @@ import imutils
 import cv2
 import numpy as np
 import datetime
+import time
 import random
 import numpy as np
 import cv2
@@ -81,12 +82,19 @@ def warpPerspVFX(img):
 # Create capture object
 cap = cv2.VideoCapture(5) # Flush the stream
 cap.release()
-cap = cv2.VideoCapture(0) # Then start the webcam
+#cap = cv2.VideoCapture(0) # Then start the webcam
+cap = cv2.VideoCapture('test_video.mp4')
+start_frame_number = 50000
+cap.set(cv2.CAP_PROP_POS_FRAMES, start_frame_number)
+#fps = cap.get(cv2.cv.CV_CAP_PROP_FPS)
+fps = 25
 
 # Init frame variables
 first_frame = None
 next_frame = None
 stack_image = None
+movement_persistent_flag = False
+read_frame_flag = False
 
 # Init display font and timeout counters
 font = cv2.FONT_HERSHEY_SIMPLEX
@@ -109,8 +117,17 @@ screenshot = cv2.cvtColor(np.array(screenshot), cv2.COLOR_RGB2BGR)
 fourcc = cv2.VideoWriter_fourcc(*'mp4v')
 out_width = 1280
 out_height = 960
-out = cv2.VideoWriter('screenshot_'+str(latest_filenum+1)+".avi",fourcc, 20.0, (out_width,out_height))
 
+out = cv2.VideoWriter('screenshot_'+str(latest_filenum+1)+".avi",fourcc, 20.0, (out_width,out_height))
+frame = np.zeros((out_height,out_width,3), dtype=np.uint8)
+
+#get current date and time
+x = datetime.datetime.now()
+y = x.replace(year=x.year + random.randint(-5,5))
+y = y.replace(month=x.month + random.randint(-2,2))
+
+#convert date and time to string
+dateTimeStr = str(y)
 
 
 # LOOP!
@@ -119,17 +136,6 @@ while True:
     # Set transient motion detected as false
     transient_movement_flag = False
     
-    # Read frame
-    ret, frame = cap.read()
-    text = "Unoccupied"
-
-    # If there's an error in capturing
-    if not ret:
-        print("CAPTURE ERROR")
-        continue
-
-   
-
 
     # take screenshot using pyautogui
     screenshot = pyautogui.screenshot()
@@ -140,45 +146,8 @@ while True:
     screenshot = cv2.cvtColor(np.array(screenshot), cv2.COLOR_RGB2BGR)
 
     # Resize and save a greyscale version of the image
-
-    frame = imutils.resize(frame, width = screenshot.shape[1])
-    frame = cv2.GaussianBlur(frame, (41, 41), 0)
-
-    # warp coordinates from x,y -> f(phi,r)
-    center = (frame.shape[1]/2, frame.shape[0]/2)
-
-    red_channel, green_channel, blue_channel = cv2.split(frame)
-
-
-    red_channel = cv2.warpPolar(red_channel, (frame.shape[1], frame.shape[0]),
-                          center, frame.shape[1],
-                          cv2.WARP_POLAR_LINEAR )  
-
-    #print(frame)
-
-    # add noise to polar coordinates
-    noise = np.random.normal(12, (12), (red_channel.shape[0], red_channel.shape[1]))        
-    noise = noise.astype(np.uint8)
-    #print(noise)
-
-    blur_level = random.randint(40,60)
-    if (blur_level % 2 ) == 0:
-        blur_level = blur_level + 1
-    red_channel = red_channel + noise
-    red_channel = np.where((noise > 12), red_channel-12, red_channel).astype('uint8')    
-    red_channel = cv2.GaussianBlur(red_channel, (blur_level, blur_level), 0)
-
-    red_channel = warpPerspVFX(red_channel)
-    #cv2.imshow("noise", noise)
-    center = (center[0] - 1, center[1] + 1)
-    red_channel = cv2.warpPolar(red_channel, (frame.shape[1], frame.shape[0]),
-                          center, frame.shape[1],
-                           cv2.WARP_INVERSE_MAP )  
-
-
-    #print(frame)
-    frame = cv2.merge((red_channel, red_channel, red_channel))
-    screenshot = cv2.resize(screenshot, (frame.shape[1], frame.shape[0]))   
+  
+    screenshot = cv2.resize(screenshot, (out_width, out_height))   
     gray = cv2.cvtColor(screenshot, cv2.COLOR_BGR2GRAY)
 
     # Blur it to remove camera noise (reducing false positives)
@@ -203,6 +172,8 @@ while True:
 
     # Compare the two frames, find the difference
     frame_delta = cv2.absdiff(first_frame, next_frame)
+    # Convert the frame_delta to color for splicing
+    frame_delta = cv2.cvtColor(frame_delta, cv2.COLOR_GRAY2BGR)
     thresh = cv2.threshold(frame_delta, 25, 255, cv2.THRESH_BINARY)[1]
     tot_pixel = thresh.size 
     non_zero_pixels = np.count_nonzero(thresh)
@@ -233,22 +204,76 @@ while True:
         movement_persistent_flag = True
         movement_persistent_counter = MOVEMENT_DETECTED_PERSISTENCE
 
-    
-    #get current date and time
-    x = datetime.datetime.now()
+    read_frame_flag = False
 
-    #convert date and time to string
-    dateTimeStr = str(x)
-  
+    if (n_frame % 5)==0:
+        if (movement_persistent_counter < 100) and (movement_persistent_counter > 90): 
+            read_frame_flag = True
+            
+    if (movement_persistent_counter == 2):
+        read_frame_flag = True
+
+
+    if read_frame_flag:
+        # Read frame
+        ret, frame = cap.read()
+        text = "Unoccupied"
+
+        # If there's an error in capturing
+        if not ret:
+            print("CAPTURE ERROR")
+            continue
+
+
+        frame = cv2.resize(frame, (out_width, out_height))
+        frame = cv2.GaussianBlur(frame, (41, 41), 0)
+
+        # warp coordinates from x,y -> f(phi,r)
+        center = (frame.shape[1]/2, frame.shape[0]/2)
+
+        red_channel, green_channel, blue_channel = cv2.split(frame)
+
+
+        red_channel = cv2.warpPolar(red_channel, (frame.shape[1], frame.shape[0]),
+                              center, frame.shape[1],
+                              cv2.WARP_POLAR_LINEAR )  
+
+        #print(frame)
+
+        # add noise to polar coordinates
+        noise = np.random.normal(12, (12), (red_channel.shape[0], red_channel.shape[1]))        
+        noise = noise.astype(np.uint8)
+        #print(noise)
+
+        blur_level = random.randint(40,60)
+        if (blur_level % 2 ) == 0:
+            blur_level = blur_level + 1
+
+        red_channel = red_channel + noise
+        red_channel = np.where((noise > 12), red_channel-12, red_channel).astype('uint8')    
+        red_channel = cv2.GaussianBlur(red_channel, (blur_level, blur_level), 0)
+
+        red_channel = warpPerspVFX(red_channel)
+        #cv2.imshow("noise", noise)
+        center = (center[0] - 1, center[1] + 1)
+        red_channel = cv2.warpPolar(red_channel, (frame.shape[1], frame.shape[0]),
+                              center, frame.shape[1],
+                               cv2.WARP_INVERSE_MAP )  
+
+
+        #print(frame)
+        frame = cv2.merge((red_channel, red_channel, red_channel))
+
+    time.sleep(0.4)
+
+ 
     # writing it to the disk using opencv
     #cv2.imwrite("image1.png", screenshot)
 
 
     # For if you want to show the individual video frames
     
-    # Convert the frame_delta to color for splicing
-    frame_delta = cv2.cvtColor(frame_delta, cv2.COLOR_GRAY2BGR)
-       # Interrupt trigger by pressing q to quit the open CV program
+        # Interrupt trigger by pressing q to quit the open CV program
   
 
     cv2.putText(frame, str("press space for screenshot"), (10,75), font, 0.75, (255,255,255), 2, cv2.LINE_AA)
@@ -267,7 +292,7 @@ while True:
     # feeds
     cv2.putText(frame, str(text), (10,35), font, 0.75, (255,255,255), 2, cv2.LINE_AA)
 
-    cv2.putText(frame, str("QuasiCode ") + dateTimeStr, (10,55), font, 0.75, (255,255,255), 2, cv2.LINE_AA)
+    cv2.putText(frame, str("QuasiCode1 ") + dateTimeStr, (10,55), font, 0.75, (255,255,255), 2, cv2.LINE_AA)
 
     ch = cv2.waitKey(1)
 
@@ -286,18 +311,16 @@ while True:
         cv2.rectangle(frame,(0,0),(frame.shape[1],frame.shape[0]),(0,0,0),cv2.FILLED)
         print("disable camera")
 
-    if (n_frame % 5)==0:
-        if (movement_persistent_counter < 100) and (movement_persistent_counter > 90): 
-             #cv2.imwrite("scr"+str(random.randint(1,1000000))+".jpg", stack_image)
-             stack_image = np.hstack((screenshot, frame))
-             stack_image = cv2.resize(stack_image, (out_width, out_height))   
-             out.write(stack_image)
+     # Malevich instead of date        
+    cv2.rectangle(screenshot,(screenshot.shape[1]-60,screenshot.shape[0]-200),(screenshot.shape[1]-10,screenshot.shape[0]-10),(0,0,0),cv2.FILLED)
+
+
+
+
+    stack_image = np.hstack((screenshot, frame))
+    stack_image = cv2.resize(stack_image, (out_width, out_height))       
+    out.write(stack_image)
              
-    if (movement_persistent_counter == 2):
-        stack_image = np.hstack((screenshot, frame))
-        stack_image = cv2.resize(stack_image, (out_width, out_height))   
-        out.write(stack_image)
-    
   
     if ch & 0xFF == ord('q'):
         out.release()
