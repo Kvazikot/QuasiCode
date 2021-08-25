@@ -58,7 +58,7 @@ MIN_SIZE_FOR_MOVEMENT = 2000
 MOVEMENT_DETECTED_PERSISTENCE = 100
 SCREENSHOT_ENABLED = 1
 CAMERA0_ENABLED = 1
-PICTURE_IN_PICTURE = 1
+PICTURE_IN_PICTURE = 0
 out_width = 1280
 out_height = 960
 
@@ -91,8 +91,8 @@ class VideoGet:
         self.stopped = False
         self.read_frame_flag = True
         self.britness = 30
-        #britness blur1 blur2
-        self.params = (90,41,51)
+        #britness blur1 blur2 noise noise_dev
+        self.params = (90,41,51,20,10)
     def start(self):
         Thread(target=self.get, args=()).start()
         return self
@@ -159,8 +159,9 @@ class VideoGet:
         #print(frame)
 
         # add noise to polar coordinates
-        noise = np.random.normal(12, (12), (v.shape[0], v.shape[1]))        
+        noise = np.random.normal(self.params[3], (self.params[4]), (v.shape[0], v.shape[1]))        
         noise = noise.astype(np.uint8)
+        #cv2.imshow("noise", noise)
         #print(noise)
 
         blur_level = random.randint(self.params[1],self.params[1]+20)
@@ -171,7 +172,7 @@ class VideoGet:
         v = cv2.GaussianBlur(v, (blur_level, blur_level), 0)
 
         v = warpPerspVFX(v)
-        #cv2.imshow("noise", noise)
+
         center = (center[0] - 1, center[1] + 1)
         v = cv2.warpPolar(v, (frame.shape[1], frame.shape[0]),
                                 center, frame.shape[1],
@@ -194,7 +195,9 @@ def set_params(x):
     britness= int(cv2.getTrackbarPos('britness','controls'))
     blur1= int(cv2.getTrackbarPos('blur1','controls'))
     blur2= int(cv2.getTrackbarPos('blur2','controls'))
-    params = (britness, blur1, blur2)
+    noise= int(cv2.getTrackbarPos('noise','controls'))
+    noise_dev= int(cv2.getTrackbarPos('noise_dev','controls'))
+    params = (britness, blur1, blur2, noise, noise_dev)
     print(f'params={params}')
     video_getter.set_britness(params)
     pass
@@ -206,6 +209,8 @@ cv2.namedWindow('controls')
 cv2.createTrackbar('britness','controls',90,255,set_params)
 cv2.createTrackbar('blur1','controls',41,100,set_params)
 cv2.createTrackbar('blur2','controls',51,100,set_params)
+cv2.createTrackbar('noise','controls',51,100,set_params)
+cv2.createTrackbar('noise_dev','controls',20,100,set_params)
 
 # Create capture object
 
