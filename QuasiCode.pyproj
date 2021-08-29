@@ -21,6 +21,9 @@
     <EnableUnmanagedDebugging>false</EnableUnmanagedDebugging>
   </PropertyGroup>
   <ItemGroup>
+    <Compile Include="live.py">
+      <SubType>Code</SubType>
+    </Compile>
     <Compile Include="QuasiCode.py" />
     <Compile Include="watchcat.py" />
   </ItemGroup>
