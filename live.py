@@ -1,7 +1,6 @@
 import cv2
 import numpy as np
-import time
-import random
+import time, random, math
 from   threading import Thread
 from matplotlib import pyplot as plt
 from numpy.random import default_rng
@@ -29,12 +28,13 @@ class Live:
     """
 
     def __init__(self, src=0):
-        self.height = 600
-        self.width = 800
+        self.height = 100
+        self.width = 100
+        self.rules = self.maze_rulez
         self.frame = np.zeros((self.height,self.width,3), dtype=np.uint8)
         self.stopped = False
         self.block_size = 16   
-        
+        self.frame = self.inital_image()
         print("Hello Live!")
 
     def start(self):
@@ -62,7 +62,7 @@ class Live:
         img = np.zeros((self.width,self.width,3), dtype=np.uint8)
         blk = np.zeros((self.block_size, self.block_size, 3), dtype=np.uint8)
         blk[::] = (255,0,0) 
-        print(f'blk.shape = {blk.shape}')
+        #print(f'blk.shape = {blk.shape}')
         num_cells = round(self.width / self.block_size);
         s = round(self.block_size / 2)
         
@@ -71,10 +71,10 @@ class Live:
         p_blocks = [.2, .3, .5]
         init_color = (255,0,0)        
         #return img
+        print("inital_")
 
 
         block_types = self.b2i((bee, loaf, block))
-        print(block_types)
         #return img
         for x in range(0,num_cells,1):
             for y in range(0,num_cells,1):
@@ -84,64 +84,65 @@ class Live:
                 blk = rng.choice(a=block_types,p=p_blocks)                
                 img[c[0]-s:c[0]+s,c[1]-s:c[1]+s,0:3] = blk.copy()
         
-        #cv2.imshow("img", img)
-        cv2.imwrite("live.png", img)
+        
+        
         print(num_cells)
         return img
 
-    def next_gen(self, frame):
-        pixels = np.zeros((self.height,self.width,3), dtype=np.uint8)
+    def maze_rulez(self, blk):
+        if (blk[1,1] !=0):
+            live = True
+        else:
+            live = False
+        blk[1,1] = 0
+        n_live_neib = np.count_nonzero(blk)                                
+        return_flag = False
+        if live and (n_live_neib == 3) or (n_live_neib == 2): #reproduction.
+            #print(f"n_live_neib={n_live_neib}")
+            return_flag = True
+        if (not live) and (n_live_neib == 3): #survival
+            return_flag = True
+        return return_flag
 
-        neibours = [(x,y) for x in [1,0,-1] for y in [1,0,-1]]
-        print(neibours)
-        print(pixels)
-        return frame
+
+    def next_gen(self, frame, rules):
+        next_frame = np.zeros((self.width,self.width,3), dtype=np.uint8)
+        next_frame = frame
+        cell_color = (255,0,0)
+        for x in range(1,self.width-2,1):
+            for y in range(1,self.width-2,1):
+                blk = frame[y-1:y+2,x-1:x+2,0:1]
+                live = rules(blk)
+                if live:
+                    next_frame[y,x,:] = cell_color
+                else:
+                    next_frame[y,x,:] = (0,0,0)       
+        return next_frame
 
     def get(self):
         while not self.stopped:
             t0 = time.time_ns() 
-            self.frame = self.next_gen(self.frame)
+            resized = cv2.resize(self.frame, (self.frame.shape[1]*5,self.frame.shape[0]*5))
+            cv2.imshow("live window", resized)
+            self.frame = self.next_gen(self.frame, self.rules)
             self.read_frame_flag = False
             lastFrameTime = (time.time_ns() - t0) / (10 ** 9)
             print('Live:: lastFrameTime  ' + str(lastFrameTime))
-            cv2.imshow("live window", self.frame)
-
+            
             time.sleep(0.4) 
-            ch = cv2.waitKey(1)
+            ch = cv2.waitKey(-1)
             if ch & 0xFF == ord('q'):
                 break
 
                 #print("get(self)")
 
-    def set_britness(self, params):
-        self.britness = params[0]
-        self.params = params
-
-    def decrase_brightness(self, img, value=30):
-        #hsv = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
-        #h, s, v = cv2.split(hsv)
-
-        if value < 0:
-            lim = value
-            img[img < lim] = 0
-            img[img >= lim] -= value
-        else:
-            lim = value
-            img[img > lim] = 255 - value
-            img[img <= lim] += value
-
-
-        #final_hsv = cv2.merge((h, s, v))
-        #img = cv2.cvtColor(final_hsv, cv2.COLOR_HSV2BGR)
-        return img               
-
     def stop(self):
         self.stopped = True
 
 live = Live(0)
-#live.next_gen(live.frame)
+live.rules = live.maze_rulez
 img = live.inital_image()
-cv2.imshow("live window", img)
+live.get()
 ch = cv2.waitKey(-1)
 
 live.stop()
