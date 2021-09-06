@@ -2,7 +2,7 @@
   + - + - + copytight by Kvazikot  <br>
   + - + - + email: vsbaranov83@gmail.com  <br>
   + - + - + github: http://github.com/Kvazikot/QuasiCode  <br>
-  + - + - +   + - + - + <br>
+  - - + - + - +   + - + - + <br>
   Description on russian	<br>
 + ------------------------------------------------- --------------------------------------- +<br>
 
