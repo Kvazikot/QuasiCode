@@ -1,8 +1,8 @@
 +---------------------------------------------------------------------------------------+<br>
-  + - + - + copytight by Kvazikot  + - + - + <br>
-  + - + - + email: vsbaranov83@gmail.com + - + - +<br>
-  + - + - + github: http://github.com/Kvazikot/QuasiCode + - + - +<br>
-  + - + - + --- + - + - + <br>
+  + - + - + copytight by Kvazikot  <br>
+  + - + - + email: vsbaranov83@gmail.com  <br>
+  + - + - + github: http://github.com/Kvazikot/QuasiCode  <br>
+  + - + - +   + - + - + <br>
   Description on russian	<br>
 + ------------------------------------------------- --------------------------------------- +<br>
 
